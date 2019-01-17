@@ -17,6 +17,7 @@ all_city = []
 citySelectData_url = r'http://tianqi.2345.com/js/citySelectData.js'
 citySelectData_text = requests.get(citySelectData_url).text
 citySelectData_data = re.compile(r'(\d+)-\w\s(\w+)-(\d+)').findall(citySelectData_text)
+# 获取全部城市
 for item in citySelectData_data:
     city_data_n_s[item[0]] = item[1]
     all_city.append(item[1])
@@ -25,7 +26,7 @@ city_country = {}
 for city in all_city:
     city_country[city] = []
 for item in citySelectData_data:
-    if city_country[item[1]] ==[]:
+    if city_country[item[1]] == []:
         city_country[item[1]].append(city_data_n_s[item[2]])
 # 找出地级市城市
 city_level = []
@@ -42,13 +43,16 @@ for city in city_level:
 for data in countrydata[1:]:
     for city in city_level:
         if data.find(city) > 0 and country_province[city] == []:
-            country_province[city].append(province_data_n_s[re.compile(r'\[(\d{2})\]').findall(data)[0]])
-
-
-
-
-*********************
-city_country_province = {}
-for city in all_city:
-    city_country_province[city] = city_country[city]
-    city_country_province[city].append(country_province[city_country[city][0]])
+            country_province[city].append(province_data_n_s[re.compile(r'\[(\d+)\]').findall(data)[0]])
+# 构建dataframe存放内容
+country_city_province = pd.DataFrame(all_city,columns = ["三级城市"])
+country_city_province["二级城市"] = all_city
+country_city_province["一级城市"] = all_city
+# 改二级一级城市
+for i in country_city_province.index:
+    country_city_province["二级城市"][i] = city_country[country_city_province["三级城市"][i]][0]
+    if country_province[city_country[country_city_province["三级城市"][i]][0]] == []:
+        country_city_province["一级城市"][i] = "NAN"
+    else:
+        country_city_province["一级城市"][i] = country_province[city_country[country_city_province["三级城市"][i]][0]][0]
+country_city_province.to_excel(r'F:\ShengCCi\S_CC\爬虫\省份信息.xlsx')
