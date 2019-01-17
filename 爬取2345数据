@@ -1,0 +1,74 @@
+# -*- coding: UTF-8 -*-
+import requests
+from bs4 import BeautifulSoup
+import re
+import pandas as pd
+# 获取国内城市的查询对应表
+# 数据所在页面
+citySelectData_url = "http://tianqi.2345.com/js/citySelectData.js"
+# 将要存放的字典
+citySelectData = {}
+cityData = []
+# 读取网站数据
+citySelectData_js = requests.get(citySelectData_url).text
+# 创建正则表达式
+pattern_city = re.compile(r"(\d+)\-[A-Z] ([\w]+)\-[\d+]")
+# 将所要的数据从网站数据中取出
+citySelectData_list = pattern_city.findall(citySelectData_js)
+# 将数据一一对应存放于字典内，只有市以上的
+
+# 所有的城市包括县
+for items in citySelectData_list:
+    citySelectData[items[1]] = items[0]
+    cityData.append(items[1])
+
+'''
+# 获取国外城市的查询对应表并放在citySelectData中
+# 数据所在页面
+interCitySelectData_url = "http://tianqi.2345.com/js/interCitySelectData.js"
+# 读取网站数据
+interCitySelectData_js = requests.get(interCitySelectData_url).text
+# 创建正则表达式
+pattern_interCity = re.compile(r"(\w+)\-[A-Z] ([\w]+)\-[\w+]")
+# 将所要的数据从网站数据中取出
+interCitySelectData_list = pattern_interCity.findall(interCitySelectData_js)
+# 将数据一一对应存放于citySelectData内
+for items in interCitySelectData_list:
+    citySelectData[items[1]] = items[0]
+    cityData.append(items[1])
+'''
+# 单页解析
+def get_wea_history(time, city):
+    history_data = {}
+    wea_history_base_url = 'http://tianqi.2345.com/t/wea_history/js/{}/{}_{}.js'
+    city_coding = citySelectData[city]
+    wea_history_url = wea_history_base_url.format(time, city_coding, time)
+    wea_history = requests.get(wea_history_url).text
+    history_data["日期"] = re.compile(r'ymd:\'(\d{4}-\d{2}-\d{2})\'').findall(wea_history)
+    history_data["最高温"] = re.compile(r'bWendu:\'(-?\d+℃)\'').findall(wea_history)
+    history_data["最低温"] = re.compile(r'yWendu:\'(-?\d+℃)\'').findall(wea_history)
+    history_data["天气"] = re.compile(r'tianqi:\'(\w*~?\w+?)\'').findall(wea_history)
+    history_data["风向"] = re.compile(r'fengxiang:\'(\w+)\'').findall(wea_history)
+    history_data["风力"] = re.compile(r'fengli:\'(\d-?\d?\w)\'').findall(wea_history)
+    history_data["空气指数"] = re.compile(r'aqi:\'(\d+)\'').findall(wea_history)
+    history_data["污染程度"] = re.compile(r'aqiInfo:\'(\w+)\'').findall(wea_history)
+    history_data["等级"] = re.compile(r'aqiLevel:\'([1-5])\'').findall(wea_history)
+    history_data = pd.DataFrame(history_data)
+    return history_data
+def ymd(year):
+    month = ['01','02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+    year_month = []
+    for item in month:
+        year_month.append(year + item)
+    return year_month
+def year_data(year, city):
+    for i in range(len(ymd(year))):
+        if i == 0:
+            year_data = get_wea_history(ymd(year)[i], city)
+        else:
+            year_data = pd.concat([year_data,get_wea_history(ymd(year)[i], city)], ignore_index = True)
+    return year_data
+# 实验
+year = '2018'
+city = '芜湖'
+year_data(year, city).to_excel(r"F:\ShengCCi\19年周报\{}-{}.xlsx".format(year, city))
