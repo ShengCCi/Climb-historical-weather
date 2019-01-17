@@ -1,0 +1,54 @@
+# -*- coding: UTF-8 -*-
+import requests
+import re
+import pandas as pd
+import json
+# 省份编号信息对应字典
+province_data_n_s = {}
+# 获取省份编号对应数据并放入对应字典
+provinceSelectData_url = r'http://tianqi.2345.com/js/common2_v20160923084755.js?ver=20180424'
+provinceSelectData_text = requests.get(provinceSelectData_url).text
+provinceSelectData_data = re.compile(r'theProvs\[(\d{2})\]\=\"\w\s(\w{2,3})\"').findall(provinceSelectData_text)
+for item in provinceSelectData_data:
+    province_data_n_s[item[0]] = item[1]
+# 城市编号信息n_s
+city_data_n_s = {}
+all_city = []
+citySelectData_url = r'http://tianqi.2345.com/js/citySelectData.js'
+citySelectData_text = requests.get(citySelectData_url).text
+citySelectData_data = re.compile(r'(\d+)-\w\s(\w+)-(\d+)').findall(citySelectData_text)
+for item in citySelectData_data:
+    city_data_n_s[item[0]] = item[1]
+    all_city.append(item[1])
+# 获取县城对应地级市
+city_country = {}
+for city in all_city:
+    city_country[city] = []
+for item in citySelectData_data:
+    if city_country[item[1]] ==[]:
+        city_country[item[1]].append(city_data_n_s[item[2]])
+# 找出地级市城市
+city_level = []
+for item in citySelectData_data:
+    if item[0] == item[2]:
+        city_level.append(item[1])
+# 提取省份和地市级的文本
+countryData = citySelectData_text.strip('var prov=new Array();')[:citySelectData_text.strip('var prov=new Array();').find(r"var provqx")]
+countrydata = countryData.split('prov')
+# 获取城市对应省份
+country_province = {}
+for city in city_level:
+    country_province[city] = []
+for data in countrydata[1:]:
+    for city in city_level:
+        if data.find(city) > 0 and country_province[city] == []:
+            country_province[city].append(province_data_n_s[re.compile(r'\[(\d{2})\]').findall(data)[0]])
+
+
+
+
+*********************
+city_country_province = {}
+for city in all_city:
+    city_country_province[city] = city_country[city]
+    city_country_province[city].append(country_province[city_country[city][0]])
